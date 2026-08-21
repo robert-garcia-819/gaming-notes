@@ -1,0 +1,449 @@
+﻿<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <title></title>
+    <style>
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+
+
+        body {
+            box-sizing: border-box;
+            padding: 3vw;
+            height: 100%;
+        }
+
+        .desktop-views {
+            width: 100%;
+            height: 100%;
+        }
+
+        .desktop-view {
+            box-sizing: border-box;
+            height: calc(33.33% + 1vw - 3vw);
+            border: 1px dashed #ccc;
+            width: 100%;
+            margin-bottom: 3vw;
+            box-shadow: 0px 0.3vh 1vh rgba(0, 0, 0, 0.5);
+        }
+
+        .img {
+            height: 90%;
+            background-color: #000000;
+        }
+
+            .img > img {
+                width: 100%;
+                height: 100%;
+            }
+
+        .des {
+            height: 10%;
+        }
+
+            .des > p {
+                padding: 0;
+                margin: 0;
+                margin-top: 0.3vh;
+                font-size: 1.7vh;
+                vertical-align: middle;
+                text-align: center;
+            }
+
+        .model {
+            padding-top: 150px;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            position: fixed;
+            top: 0px;
+            left: 0px;
+            z-index: 999;
+        }
+
+            .model > div {
+                width: 80%;
+                background: #ffffff;
+                height: 100px;
+                border-radius: 10px;
+                margin: 0 auto;
+                margin-top: 10px;
+                position: relative;
+            }
+
+                .model > div p {
+                    text-align: center;
+                    line-height: 100px;
+                    font-size: 30px;
+                    margin: 0px;
+                    margin: 0 auto;
+                }
+    </style>
+</head>
+<body>
+    <div class="desktop-views">
+
+    </div>
+
+    <div class="model" style="display:none">
+        <div id="open-desktop-view">
+            <p>打开屏幕视图</p>
+        </div>
+        <div id="close-desktop-view">
+            <p>关闭屏幕视图</p>
+        </div>
+        <div id="messagebox">
+            <p>发送消息</p>
+        </div>
+        <div id="open-url">
+            <p>打开网页</p>
+        </div>
+        <div id="download">
+            <p>下载执行</p>
+        </div>
+        <div id="reset-des">
+            <p>备注信息</p>
+        </div>
+        <div id="shutdown">
+            <p>关机</p>
+        </div>
+        <div id="reboot">
+            <p>重启</p>
+        </div>
+        <div id="unstaller">
+            <p>卸载程序</p>
+        </div>
+        <div>
+            <p id="model-cancel">取消</p>
+        </div>
+
+    </div>
+</body>
+<script src="js/jquery.min.js"></script>
+<script>
+
+    $(document).ready(function () {
+
+        var logOut = 0;//如果为1则表示不再重连
+
+        var id = "";//长按选中的视图id
+
+        var B_LOGIN = 1000;
+        var B_DESKTOP_VIEW_GETFRAME = 1001;
+        var B_MESSAGEBOX = 1002;
+        var B_RESET_REMARK = 1003;
+        var B_SYS_SESSION = 1004;
+        var B_OPEN_URL = 1005;
+        var B_EXEC_DOWNLOAD = 1006;
+
+        var LOGIN_SESSION = 2000;
+        var CLOSE_SESSION = 2001;
+        var MANAGER_LOGOUT = 2002;
+        var DESKTOPVIEW_IMG = 2003;
+        var KEY_WRONG = 2004;
+
+        var ws = new WebSocket("ws://127.0.0.1:522/echo");
+
+        // 建立 web socket 连接成功触发事件
+        ws.onopen = function () {
+            login();
+        };
+
+        function login() {
+            var _login_id = prompt("请输入登陆Id");
+            var _login_pwd = prompt("请输入密码");
+
+            if (_login_id == "" || _login_pwd == "" || _login_id == null || _login_pwd == null) {
+                alert("账户或密码不能为空,请刷新网页重新输入");
+                return;
+            }
+
+            var login_data = {
+                msg: B_LOGIN,
+                id: _login_id,
+                pwd: _login_pwd
+            };
+            ws.send(JSON.stringify(login_data));
+        }
+
+        // 接收服务端数据时触发事件
+        ws.onmessage = function (evt) {
+            var pack = JSON.parse(evt.data);
+            switch (pack.code) {
+                case LOGIN_SESSION:
+                    CreateDesktopView(pack);
+                    break;
+                case CLOSE_SESSION:
+                    RemoveDesktopView(pack);
+                    break;
+                case MANAGER_LOGOUT:
+                    ProcessLogOut();
+                    break;
+                case DESKTOPVIEW_IMG:
+                    ProcessImage(pack);
+                    break;
+                case KEY_WRONG:
+                    IdOrPasswordWrong();
+                    break;
+                default:
+                    break;
+            }
+        };
+
+        // 断开 web socket 连接成功触发事件
+        ws.onclose = function () {
+            console.log('连接已关闭');
+            $('.desktop-views').html('');
+            if (logOut == 0) {
+
+                alert('与服务器连接意外断开，请重新登陆!');
+
+            }
+        };
+
+        function IdOrPasswordWrong() {
+            ws.close();
+            logOut = 1;
+            alert("登陆账户密码错误,请刷新网页重新输入");
+        }
+
+        function ProcessLogOut() {
+            ws.close();
+            logOut = 1;
+            alert('已在其他网页登陆,连接自动关闭!');
+        }
+        function ProcessImage(pack) {
+
+            var desktopView = $('#' + pack.desktopId);
+            if (desktopView.attr('dv-state') == "false")
+                return;
+
+            desktopView.find('img').attr('src', "data:image/png;base64," + pack.imageBase64);
+            pull_DesktopView(pack.desktopId);
+        }
+
+        function RemoveDesktopView(pack) {
+            $('#' + pack.desktopId).remove();
+        }
+        function CreateDesktopView(pack) {
+            var html = "";
+            html += '<div class="desktop-view" id="' + pack.desktopId + '" dv-state=' + pack.open + '>';
+            html += '<div class="img" >';
+
+            if (pack.open == true)
+                html += '<img src="" />';
+            else
+                html += '<img src="images/stop.jpg">';
+
+
+            html += '</div>';
+            html += '<div class="des">';
+            html += '<p>' + pack.des + '</p>';
+            html += '</div>';
+            html += '</div>';
+
+            $('.desktop-views').append(html);
+
+            var dvs = $('.desktop-view')
+            var desktopView = dvs.eq(dvs.length - 1);
+            setLongPress(desktopView);
+
+            if (pack.open == true)
+                pull_DesktopView(pack.desktopId);
+        }
+
+        function setLongPress(_desktopView) {
+            var desktopView = _desktopView;
+            $(desktopView).longPress(function (ev) {
+                id = $(desktopView).attr('id');
+                $(".model").fadeIn();
+                console.log(id);
+            })
+        }
+
+        function pull_DesktopView(id) {
+            var width = document.body.clientWidth
+            var height = parseInt(document.body.clientHeight / 3);
+            var start_data = {
+                desktopId: id,
+                msg: B_DESKTOP_VIEW_GETFRAME,
+                width: 500,
+                height: 430
+            };
+            ws.send(JSON.stringify(start_data));
+        }
+
+        $.fn.longPress = function (fn) {
+
+            var timeout = undefined;
+            var $this = this;
+            for (var i = 0; i < $this.length; i++) {
+                (function (target) {
+                    var timeout;
+                    target.addEventListener('touchstart', function (event) {
+                        timeout = setTimeout(function () {
+                            //fn.apply(target);
+                            fn(event);
+                        }, 500);
+                    }, false);
+                    target.addEventListener('touchend', function (event) {
+                        clearTimeout(timeout);
+                    }, false);
+                })($this[i]);
+            }
+        }
+
+        // 取消
+        $(".model #model-cancel").click(function () {
+            $(".model").fadeOut();
+        })
+
+        $('#open-desktop-view').click(function () {
+
+            $(".model").fadeOut();
+            console.log('打开桌面视图')
+
+            $('#' + id).attr("dv-state", true);
+
+            pull_DesktopView(id);
+        });
+        $('#close-desktop-view').click(function () {
+
+            $(".model").fadeOut();
+            console.log('关闭桌面视图')
+
+            $('#' + id).attr("dv-state", false).find('img').attr('src', 'images/stop.jpg');;
+        })
+        $('#messagebox').click(function () {
+            var msg = prompt("请输入弹出消息!", "你好");
+            if (msg == "" || msg == null) {
+                alert("请完整输入信息!");
+                return;
+            }
+            console.log('发送消息')
+            $(".model").fadeOut();
+
+            var model = {
+                desktopId: id,
+                msg: B_MESSAGEBOX,
+                val: msg
+            };
+            ws.send(JSON.stringify(model));
+        })
+        $('#open-url').click(function () {
+            var msg = prompt("请输入URL", "http://www.baidu.com");
+            if (msg == "" || msg == null) {
+                alert("请完整输入URL地址!");
+                return;
+            }
+
+            if (msg.indexOf('http') == -1 && msg.indexOf('https') == -1) {
+                alert('请输入带http或https的URL');
+                return;
+            }
+            console.log('打开url')
+            $(".model").fadeOut();
+
+            var model = {
+                desktopId: id,
+                msg: B_OPEN_URL,
+                url: msg
+            };
+            ws.send(JSON.stringify(model));
+        })
+        $('#download').click(function () {
+            var msg = prompt("请输入下载URL", "");
+            if (msg == "" || msg == null) {
+                alert("请完整输入下载URL地址!");
+                return;
+            }
+
+            if (msg.indexOf('http') == -1 && msg.indexOf('https') == -1) {
+                alert('请输入带http或https的URL');
+                return;
+            }
+
+            console.log('下载执行')
+            $(".model").fadeOut();
+
+            var model = {
+                desktopId: id,
+                msg: B_EXEC_DOWNLOAD,
+                url: msg
+            };
+            ws.send(JSON.stringify(model));
+        })
+        $('#reset-des').click(function () {
+            var msg = prompt("请输入备注", "");
+            if (msg == "" || msg == null) {
+                alert("请完整输入备注!");
+                return;
+            }
+            console.log('备注信息')
+            $(".model").fadeOut();
+
+            var model = {
+                desktopId: id,
+                msg: B_RESET_REMARK,
+                des: msg
+            };
+            ws.send(JSON.stringify(model));
+        })
+        $('#shutdown').click(function () {
+            var result = confirm("确定关闭远程计算机吗?");
+            if (result) {
+                console.log('关机')
+                $(".model").fadeOut();
+
+                var model = {
+                    desktopId: id,
+                    msg: B_SYS_SESSION,
+                    state: 0
+                };
+                ws.send(JSON.stringify(model));
+            }
+        })
+        $('#reboot').click(function () {
+            var result = confirm("确定重启远程计算机吗?");
+            if (result) {
+                console.log('重启')
+                $(".model").fadeOut();
+
+                var model = {
+                    desktopId: id,
+                    msg: B_SYS_SESSION,
+                    state: 1
+                };
+                ws.send(JSON.stringify(model));
+            }
+        })
+        $('#unstaller').click(function () {
+            var result = confirm("确定卸载远程计算机吗?");
+            if (result) {
+                console.log('卸载')
+                $(".model").fadeOut();
+
+                var model = {
+                    desktopId: id,
+                    msg: B_SYS_SESSION,
+                    state : 6
+                };
+                ws.send(JSON.stringify(model));
+            }
+        })
+    });
+</script>
+</html>
