@@ -19,3 +19,5 @@ namespace SiMay.Core
         public string Text { get; set; }
     }
 }
+
+// bc64ee
