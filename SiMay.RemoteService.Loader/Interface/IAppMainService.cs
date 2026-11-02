@@ -40,3 +40,5 @@ namespace SiMay.RemoteService.Loader
         public void Notify(TcpSessionNotify notify, SessionProviderContext session);
     }
 }
+
+// 5f40d4

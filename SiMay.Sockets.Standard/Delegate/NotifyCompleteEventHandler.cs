@@ -7,3 +7,5 @@ namespace SiMay.Sockets.Delegate
 {
     public delegate void NotifyEventHandler<Tevent, TSession>(Tevent e, TSession session);
 }
+
+// b6a3ba

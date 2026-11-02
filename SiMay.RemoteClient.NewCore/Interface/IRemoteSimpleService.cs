@@ -13,3 +13,5 @@ namespace SiMay.Service.Core
     {
     }
 }
+
+// f6922c
